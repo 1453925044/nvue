@@ -1,0 +1,306 @@
+<template>
+	<view class="page">
+		<!-- 系统状态栏高度 -->
+		<!-- #ifdef APP-PLUS -->
+		<status-bar :statusBarHeight="statusBarHeight"></status-bar>
+		<!-- #endif -->
+		<!-- 自定义导航栏 -->
+		<!-- #ifdef APP-PLUS || H5 -->
+		<navigate :url="'/pages/regist/regist'"></navigate>
+		<!-- #endif -->
+		<view class="describe">
+			<text class="msg">{{ isShow ? '手机快捷登录' : '账号密码登录' }}</text>
+			<text class="it" v-if="isShow">未注册过的手机将自动创建平台账号</text>
+		</view>
+		<!-- 切换登录方式 -->
+		<view class="account" v-if="isShow">
+			<view class="section">
+				<input class="phone" type="number" :maxlength="11" v-model="phoneNum" placeholder="请输入手机号" placeholder-class="p-active" />
+				<text class="btns" type="default" @tap="getCode" :class="{ isColor: disable != true }">{{ count }}{{ btnMsg }}</text>
+			</view>
+			<view class="section"><input class="pwd" type="number" :maxlength="6" v-model="yzm" placeholder="请输入短信验证码" placeholder-class="p-active" /></view>
+		</view>
+		<view class="account" v-if="!isShow">
+			<view class="section"><input class="phone" type="number" :maxlength="11" v-model="phoneNum" placeholder="请输入登录账号" placeholder-class="p-active" /></view>
+			<view class="section"><input class="pwd" type="password" :maxlength="18" v-model="password" placeholder="请输入密码" placeholder-class="p-active" /></view>
+		</view>
+		<!-- 平台隐私政策、用户协议 -->
+		<view class="agreement">
+			<text class="agree-head">为保障您的隐私权益,请认真阅读以下协议</text>
+			<view class="agree-content">
+				<text class="navigate" @tap="jump('')">《平台隐私政策》</text>
+				<text class="navigate">及</text>
+				<text class="navigate" @tap="jump('')">《平台用户服务协议》</text>
+			</view>
+		</view>
+		<!-- 登录方式 -->
+		<view class="chang">
+			<view @tap="login"><text class="btn btn-gradient">同意协议并登录</text></view>
+			<view class="box">
+				<view class="box-one" v-if="isShow"><text class="one" @tap="loginChange">账号密码登录</text></view>
+				<view class="box-two" v-if="!isShow">
+					<text class="two" @tap="loginChange">手机快捷登录</text>
+					<text class="line">|</text>
+					<text class="two" @tap="jump('')">忘记密码</text>
+				</view>
+			</view>
+		</view>
+		<!-- 第三方登录方式，请换成每个平台自身的appid -->
+		<view class="menu">
+			<view class="list" v-for="(item, key) in providerList" :key="key"><image class="icon" :src="item.img" mode="aspectFill"></image></view>
+		</view>
+	</view>
+</template>
+
+<script>
+import statusBar from '@/components/statusBar';
+import navigate from '@/components/navigate';
+export default {
+	components: {
+		statusBar,
+		navigate
+	},
+	data() {
+		return {
+			phoneNum: '',
+			yzm: '',
+			password: '',
+			btnMsg: '',
+			statusBarHeight: 0,
+			isShow: true,
+			disable: true,
+			count: '获取验证码',
+			timer: null,
+			providerList: []
+		};
+	},
+	onLoad() {
+		// #ifdef APP-PLUS
+		// 获取手机状态栏高度
+		this.statusBarHeight = uni.getSystemInfoSync().statusBarHeight;
+		// 获取第三方登录供应商(QQ,微信，微博),支付宝等其它第三方登录请自己集成相应的SDK,各类平台的appid请到相应的平台去申请
+		this.reqSupplier();
+		// #endif
+	},
+	mounted() {
+		// #ifdef APP-PLUS
+		// 引用字体包
+		let domModule = weex.requireModule('dom');
+		domModule.addRule('fontFace', {
+			fontFamily: 'medium',
+			src: "url('https://www.chinabdc.cn:8092/H5/font/PingFangSC-Medium.ttf')"
+		});
+		// #endif
+	},
+	methods: {
+		login() {},
+		// 登录方式切换
+		loginChange() {
+			this.isShow = !this.isShow;
+		},
+		// 获取第三方登录供应商
+		reqSupplier() {
+			uni.getProvider({
+				service: 'oauth',
+				success: res => {
+					console.log(res);
+					this.providerList = res.provider.map(authName => {
+						switch (authName) {
+							case 'weixin':
+								return {
+									name: '微信',
+									id: authName,
+									img: '/static/images/user/1.6.png'
+								};
+							case 'qq':
+								return {
+									name: 'QQ',
+									id: authName,
+									img: '/static/images/user/1.7.png'
+								};
+							case 'sinaweibo':
+								return {
+									name: '微博',
+									id: authName,
+									img: '/static/images/user/1.5.png'
+								};
+						}
+					});
+				},
+				fail: err => {
+					this.showToast('获取失败', 'none');
+				}
+			});
+		},
+		// 账号登录获取验证码
+		getCode() {
+			this.btnMsg = 's重发';
+			this.disable = false;
+			const TIME_COUNT = 60;
+			if (!this.timer) {
+				this.count = TIME_COUNT;
+				this.timer = setInterval(() => {
+					if (this.count > 0 && this.count <= TIME_COUNT) {
+						this.count--;
+					} else {
+						clearInterval(this.timer);
+						this.timer = null;
+						this.disable = true;
+						this.count = '重新获取';
+						this.btnMsg = '';
+					}
+				}, 1000);
+				this.showToast('发送成功', 'success');
+			}
+		},
+		// 消息弹框
+		showToast(title, icon) {
+			uni.showToast({
+				title: String(title),
+				icon: String(icon)
+			});
+		}
+	}
+};
+</script>
+
+<style>
+.page {
+	width: 750upx;
+	flex: 1;
+}
+.describe {
+	width: 750upx;
+	padding: 0 48upx;
+	align-items: flex-start;
+	margin-top: 36upx;
+}
+
+.it {
+	font-size: 28upx;
+	color: #9b9b9b;
+	margin-top: 12upx;
+}
+.msg {
+	font-size: 40upx;
+	color: #212121;
+}
+
+.account {
+	width: 750upx;
+	margin-top: 24upx;
+	align-items: center;
+}
+.section {
+	position: relative;
+	width: 664upx;
+	height: 130upx;
+	flex-direction: row;
+	align-items: center;
+	border-bottom-color: #dddddd;
+	border-bottom-width: 1upx;
+}
+.phone,
+.pwd {
+	width: 520upx;
+	height: 130upx;
+	font-size: 30upx;
+	color: #181818;
+}
+.btns {
+	line-height: 50upx;
+	font-size: 28upx;
+	color: #888888;
+	border-width: 0upx;
+	background-color: rgba(0, 0, 0, 0);
+}
+.isColor {
+	color: #409eff;
+}
+.agreement {
+	width: 750upx;
+	margin-top: 38upx;
+	padding: 0 48upx;
+}
+
+.agree-head {
+	align-items: center;
+	font-size: 26upx;
+	color: #cccccc;
+}
+.agree-content {
+	flex-direction: row;
+	align-items: center;
+	font-size: 26upx;
+	color: #cccccc;
+	margin-top: 24upx;
+}
+.navigate {
+	padding: 10upx 0;
+	color: #cccccc;
+	font-size: 26upx;
+	text-decoration: underline;
+}
+
+.chang {
+	width: 750upx;
+	margin-top: 186upx;
+	padding: 0 48upx;
+}
+
+.box {
+	width: 664upx;
+	margin-top: 42upx;
+}
+.box-one,
+.box-two {
+	width: 664upx;
+	height: 60upx;
+}
+.one {
+	height: 60upx;
+	line-height: 60upx;
+	text-align: center;
+	font-size: 26upx;
+	color: #333333;
+}
+.box-two {
+	padding: 0 90upx;
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-around;
+}
+.two {
+	height: 60upx;
+	text-align: center;
+	line-height: 60upx;
+	font-size: 26upx;
+	color: #333333;
+	align-items: center;
+}
+.line {
+	width: 1upx;
+	height: 50upx;
+	background-color: #cccccc;
+}
+
+.menu {
+	position: fixed;
+	bottom: 90upx;
+	width: 750upx;
+	padding: 0 70upx;
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-around;
+}
+
+.list {
+	width: 70upx;
+	height: 70upx;
+}
+
+.icon {
+	width: 70upx;
+	height: 70upx;
+}
+</style>
